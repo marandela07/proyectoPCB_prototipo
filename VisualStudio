@@ -1,0 +1,163 @@
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+// Universidad del Valle de Guatemala
+// PCB
+// Maryela Morales
+// Proyecto  01
+// MCU: ESP32 dev kit 1.0
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//librerias
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+#include <Arduino.h>
+#include <Wire.h>
+#include <LiquidCrystal.h>
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//definición de pines
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+// Pines I2C
+#define I2C_SDA 21
+#define I2C_SCL 22
+// Dirección I2C del sensor LM75
+#define LM75_ADDRESS 0x48
+// Tiempos de espera (milisegundos)
+#define SENSOR_READ_INTERVAL 500     // Leer sensor cada 500ms
+//Definición de pines LCD
+#define rs 35
+#define en 33
+#define d4 26
+#define d5 27
+#define d6 14
+#define d7 12
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//variables globales
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//Instanciar objeto LCD
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+// Variables de estado
+float lastTemperature = 0.0;
+bool sensorAvailable = false;
+unsigned long lastReadTime = 0;
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//Prototipos de funciones
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//Comunicacion I2C -> leer temperatura 
+void inicializar_I2C();
+bool verificar_sensor_LM75();
+float leer_temperatura_LM75();
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//setup
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+void setup() {
+    // Inicializar comunicaciones
+    Serial.begin(115200);
+    delay(1000);  // Esperar estabilización
+    
+    // Inicializar periféricos
+    inicializar_I2C();
+    delay(100);
+
+    //Inicializar LCD
+    lcd.begin(16, 2);
+    //Definir la posición del cursor
+    lcd.setCursor(0, 0);
+    //Desplegar el mensaje
+    lcd.print("Temperatura Sensor:");
+    
+    // Verificar disponibilidad del sensor
+    if (verificar_sensor_LM75()) {
+        sensorAvailable = true;
+        Serial.println("LM75 detectado correctamente");
+    } else {
+        sensorAvailable = false;
+        Serial.println("Sensor LM75 no encontrado");
+    }
+}
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//loop
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+void loop() {
+    // Verificar lee el sensor
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - lastReadTime >= SENSOR_READ_INTERVAL) {
+        lastReadTime = currentMillis; 
+
+        if (sensorAvailable) {
+            float tempActual = leer_temperatura_LM75();
+            
+            if (tempActual > -100) {
+                lastTemperature = tempActual;
+            } else {
+                //intentamos verificar si el sensor sigue ahí
+                sensorAvailable = verificar_sensor_LM75();
+            }
+        } else {
+            sensorAvailable = verificar_sensor_LM75();
+            if(sensorAvailable) Serial.println("[Sensor] Reconectado."); //Reconecta el sensor si se detecta que vuelve a estar disponible
+        }
+    }
+  
+  }
+
+
+  //.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//definición de funciones
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+
+void inicializar_I2C() {
+    Wire.begin(I2C_SDA, I2C_SCL);
+    Wire.setClock(100000); 
+}
+
+bool verificar_sensor_LM75() {
+    Wire.beginTransmission(LM75_ADDRESS);
+    return (Wire.endTransmission() == 0);
+}
+
+float leer_temperatura_LM75() {
+
+    Wire.beginTransmission(LM75_ADDRESS);
+
+    Wire.write(0x00);
+
+    if (Wire.endTransmission() != 0) return -999.0;
+
+   
+
+    Wire.requestFrom(LM75_ADDRESS, 2);
+
+    if (Wire.available() >= 2) {
+
+        int8_t temp_msb = Wire.read();
+        uint8_t temp_lsb = Wire.read();
+        float temperatura = temp_msb + ((temp_lsb >> 5) * 0.125);
+        Serial.print("> Temp: ");
+        Serial.print(temperatura);
+        Serial.println(" °C");
+
+        return temperatura;
+
+    }
+
+    return -999.0;
+}
+
+void actualizar_LCD(float temp) {
+    lcd.setCursor(0, 1); // Nos movemos a la segunda línea
+    
+    if (temp < -100) {
+        lcd.print("Error Sensor   ");
+    } else {
+        lcd.print("Temp: ");
+        lcd.print(temp, 1); // Imprime con 1 decimal
+        lcd.print((char)223); // Carácter de grado °
+        lcd.print("C   ");    // Espacios extra para limpiar residuos de texto anterior
+    }
+}
