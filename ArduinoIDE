@@ -1,0 +1,70 @@
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+// Universidad del Valle de Guatemala
+// PCB
+// Maryela Morales
+// Proyecto  01
+// MCU: ESP32 dev kit 1.0
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//librerias
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+#define CUSTOM_SETTINGS
+#define INCLUDE_GAMEPAD_MODULE
+#include <DabbleESP32.h>
+#include <ESP32Servo.h>
+#include <Arduino.h>
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//definición de pines
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+const int servoPin = 4;
+Servo direccionServo; 
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//variables globales
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//PWM
+const int freq = 30000;      
+const int pwmChannel = 0;
+const int resolution = 8;
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//Prototipos de funciones
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//setup
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(115200);      /
+  Dabble.begin("MyEsp32");      //Configuración Bluetooth
+}
+
+ // Configuracion de PWM
+  ledcSetup(pwmChannel, freq, resolution);
+  ledcAttachPin(enable1Pin, pwmChannel);
+
+// Configuracion Servomotor
+  direccionServo.attach(servoPin);
+  direccionServo.write(90); // Para mantenerlo en el centro
+}
+
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+//loop
+//.:・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.・°☆.。.:・°☆.。.:・°☆.。.:・°☆*:.
+void loop() {
+  Dabble.processInput();             //this function is used to refresh data obtained from smartphone.Hence calling this function is mandatory in order to get data properly from your mobile.
+  Serial.print("KeyPressed: ");
+  if (GamePad.isUpPressed()){
+    direccionServo.write(45);
+    Serial.print("Up");
+  }
+
+  if (GamePad.isDownPressed()){
+    direccionServo.write(135);
+    Serial.print("Down");
+  }
+
+
+}
